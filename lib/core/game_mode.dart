@@ -1,0 +1,4 @@
+enum GameMode {
+  campaign,
+  wordRumble,
+}
