@@ -11,6 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Ads
+  google_mobile_ads: ^5.1.0
+
   # Game engine
   flame: ^1.17.0
 

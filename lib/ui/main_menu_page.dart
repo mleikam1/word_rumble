@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/game_mode.dart';
 import 'game_page.dart';
+import 'widgets/banner_ad_slot.dart';
 
 class MainMenuPage extends StatelessWidget {
   const MainMenuPage({super.key});
@@ -67,13 +68,7 @@ class MainMenuPage extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Container(
-              height: 60,
-              width: double.infinity,
-              alignment: Alignment.center,
-              color: Colors.black12,
-              child: const Text('Ad Placeholder (Banner)'),
-            ),
+            const BannerAdSlot(),
           ],
         ),
       ),
