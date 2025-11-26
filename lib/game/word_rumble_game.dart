@@ -5,6 +5,7 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/game_mode.dart';
 import '../data/level_definition.dart';
@@ -14,22 +15,35 @@ import '../data/powerup_definition.dart';
 import 'components/letter_component.dart';
 import 'components/slot_component.dart';
 
+class GuessResult {
+  final String guess;
+  final List<SlotFeedback> feedback;
+
+  const GuessResult({required this.guess, required this.feedback});
+}
+
 class WordRumbleGame extends FlameGame
     with HasCollisionDetection, HasKeyboardHandlerComponents {
   final GameMode mode;
   final int initialLevelIndex;
+
+  /// Notifies Flutter overlays to rebuild lightweight HUD state like timers
+  /// and grid feedback without forcing a full rebuild of the game widget.
+  final ValueNotifier<int> hudTicker = ValueNotifier(0);
 
   late LevelDefinition _currentLevel;
   late LevelTheme _currentTheme;
   late String _targetWord;
 
   final List<SlotComponent> _slots = [];
+  final List<GuessResult> guessHistory = [];
 
   double totalTime = 30.0;
   double remainingTime = 30.0;
   bool _isGameOver = false;
 
   double _timeFreezeRemaining = 0.0;
+  double _hudRefreshAccumulator = 0;
 
   int _guessesUsed = 0;
   int _maxGuesses = 6;
@@ -41,6 +55,8 @@ class WordRumbleGame extends FlameGame
   // Needed in HUD Overlay
   int get guessesUsed => _guessesUsed;
   int get maxGuesses => _maxGuesses;
+  String get targetWord => _targetWord;
+  List<SlotComponent> get slots => List.unmodifiable(_slots);
 
   WordRumbleGame({
     required this.mode,
@@ -60,9 +76,12 @@ class WordRumbleGame extends FlameGame
 
     totalTime = _currentLevel.timeLimitSeconds.toDouble();
     remainingTime = totalTime;
+    _hudRefreshAccumulator = 0;
 
     _isGameOver = false;
     lastResultMessage = null;
+
+    guessHistory.clear();
 
     _guessesUsed = 0;
     _maxGuesses = _currentLevel.maxGuesses;
@@ -71,6 +90,8 @@ class WordRumbleGame extends FlameGame
     _slots.clear();
 
     await _buildScene();
+
+    hudTicker.value++;
   }
 
   Future<void> _buildScene() async {
@@ -177,6 +198,12 @@ class WordRumbleGame extends FlameGame
       }
     }
 
+    _hudRefreshAccumulator += dt;
+    if (_hudRefreshAccumulator >= 0.12) {
+      hudTicker.value++;
+      _hudRefreshAccumulator = 0;
+    }
+
     _assignLettersToSlots();
   }
 
@@ -228,7 +255,8 @@ class WordRumbleGame extends FlameGame
     final guess = _slots.map((s) => s.currentLetter!).join();
     _guessesUsed++;
 
-    _evaluateGuess(guess);
+    final feedback = _evaluateGuess(guess);
+    guessHistory.add(GuessResult(guess: guess, feedback: feedback));
 
     if (guess == _targetWord) {
       _onWordSolved();
@@ -247,9 +275,11 @@ class WordRumbleGame extends FlameGame
 
     lastResultMessage =
     'Guess $_guessesUsed/$_maxGuesses – keep going!';
+
+    hudTicker.value++;
   }
 
-  void _evaluateGuess(String guess) {
+  List<SlotFeedback> _evaluateGuess(String guess) {
     final target = _targetWord.split('');
     final guessChars = guess.split('');
 
@@ -280,6 +310,34 @@ class WordRumbleGame extends FlameGame
     for (int i = 0; i < _slots.length; i++) {
       _slots[i].feedback = feedback[i];
     }
+
+    return feedback;
+  }
+
+  void inputLetter(String letter) {
+    if (!isWordRumble || _isGameOver) return;
+
+    for (final slot in _slots) {
+      if (slot.currentLetter == null) {
+        slot.currentLetter = letter;
+        break;
+      }
+    }
+
+    hudTicker.value++;
+  }
+
+  void removeLetter() {
+    if (!isWordRumble || _isGameOver) return;
+
+    for (int i = _slots.length - 1; i >= 0; i--) {
+      if (_slots[i].currentLetter != null) {
+        _slots[i].clearLetterAndFeedback();
+        break;
+      }
+    }
+
+    hudTicker.value++;
   }
 
   // --------------------------------------------------------------------------
@@ -359,13 +417,16 @@ class WordRumbleGame extends FlameGame
     _isGameOver = false;
     _timeFreezeRemaining = 0;
     remainingTime = totalTime;
+    _hudRefreshAccumulator = 0;
 
     removeAll(children.toList());
     _slots.clear();
     lastResultMessage = null;
     _guessesUsed = 0;
+    guessHistory.clear();
 
     _buildScene();
+    hudTicker.value++;
   }
 
   // Shuffle helper
