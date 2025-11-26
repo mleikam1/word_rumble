@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'services/ad_service.dart';
+
 import 'core/game_state.dart';
 import 'ui/main_menu_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AdService.initialize();
+
   runApp(const WordRumbleApp());
 }
 

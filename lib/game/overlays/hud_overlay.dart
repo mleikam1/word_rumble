@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/game_state.dart';
 import '../../data/powerup_definition.dart';
+import '../../ui/widgets/banner_ad_slot.dart';
 import '../components/slot_component.dart';
 import '../word_rumble_game.dart';
 
@@ -279,221 +282,233 @@ class HudOverlay extends StatelessWidget {
       child: ValueListenableBuilder<int>(
         valueListenable: game.hudTicker,
         builder: (context, _, __) {
-          return Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: darkMode
-                    ? [const Color(0xFF0F0F1A), const Color(0xFF1F1F35)]
-                    : [const Color(0xFFA7E9F1), const Color(0xFF7BCFDB)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-            child: Column(
-              children: [
-                _buildTopBar(context, gameState, darkMode: darkMode),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: darkMode
-                          ? Colors.white.withValues(alpha: 0.05)
-                          : Colors.black.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.ad_units, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Text(
-                          'Test Ad Banner',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+              final cardWidth = math.min(constraints.maxWidth - 24, 520.0);
+              final idealHeight = cardWidth * 16 / 9;
+              final maxHeight = constraints.maxHeight * 0.55;
+              final safeMaxHeight = math.max(maxHeight, 360.0);
+              final cardHeight = idealHeight.clamp(320.0, safeMaxHeight);
+
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: darkMode
+                        ? [const Color(0xFF0F0F1A), const Color(0xFF1F1F35)]
+                        : [const Color(0xFFA7E9F1), const Color(0xFF7BCFDB)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(bottom: bottomInset > 0 ? bottomInset : 12),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildTopBar(context, gameState, darkMode: darkMode),
+                        BannerAdSlot(darkMode: darkMode),
+                        const SizedBox(height: 12),
+                        _buildGamePreview(
+                          width: cardWidth,
+                          height: cardHeight,
+                          backgroundColor: backgroundColor,
+                          darkMode: darkMode,
                         ),
-                        Spacer(),
-                        Text('AdMob demo'),
+                        const SizedBox(height: 12),
+                        _buildBottomPanel(context, powerUps, darkMode),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Center(
-                    child: IgnorePointer(
-                      ignoring: true,
-                      child: AspectRatio(
-                        aspectRatio: 9 / 16,
-                        child: Stack(
-                          children: [
-                            IgnorePointer(
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: backgroundColor,
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(
-                                    color: darkMode
-                                        ? Colors.white12
-                                        : Colors.black12,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned.fill(
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 18),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 32),
-                                    child: _buildGrid(darkMode),
-                                  ),
-                                  const Spacer(),
-                                  IgnorePointer(
-                                    child: Container(
-                                      height: 140,
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 16,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: darkMode
-                                            ? const Color(0xFF111827)
-                                            : const Color(0xFF6BE0FF),
-                                        borderRadius: BorderRadius.circular(18),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color:
-                                                Colors.black.withValues(alpha: 0.15),
-                                            blurRadius: 12,
-                                          ),
-                                        ],
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            game.isWordRumble
-                                                ? 'Letters floating – tap keys or drag pieces!'
-                                                : 'Drag the bobbing letters into the slots above.',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: darkMode
-                                                  ? Colors.white70
-                                                  : Colors.black87,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            'Water physics enabled',
-                                            style:
-                                                TextStyle(color: Colors.white70),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGamePreview({
+    required double width,
+    required double height,
+    required Color backgroundColor,
+    required bool darkMode,
+  }) {
+    return Center(
+      child: Container(
+        width: width,
+        height: height,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: darkMode ? Colors.white12 : Colors.black12,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 12,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: darkMode
+                    ? [const Color(0xFF141422), const Color(0xFF1F2033)]
+                    : [Colors.white.withValues(alpha: 0.8), backgroundColor],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: IgnorePointer(
+              ignoring: true,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: _buildGrid(darkMode),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInstructionCard(darkMode),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstructionCard(bool darkMode) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: BoxDecoration(
+          color: darkMode ? const Color(0xFF0B1220) : const Color(0xFFE2F6FF),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              game.isWordRumble
+                  ? 'Letters floating – tap keys or drag pieces!'
+                  : 'Drag the bobbing letters into the slots above.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: darkMode ? Colors.white70 : Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              game.isWordRumble
+                  ? 'Build your guess before the timer runs out.'
+                  : 'Water physics enabled',
+              style: TextStyle(
+                color: darkMode ? Colors.white60 : Colors.black54,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomPanel(
+    BuildContext context,
+    List<PowerUpDefinition> powerUps,
+    bool darkMode,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: darkMode ? const Color(0xFF0F172A) : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          if (game.isWordRumble) _buildKeyboard(context, darkMode),
+          if (!game.isWordRumble)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Grab letters from the water and spell "${game.targetWord}"',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: darkMode ? Colors.white : Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          Row(
+            children: powerUps.map((p) {
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          darkMode ? Colors.white12 : Colors.blueGrey.shade50,
+                      foregroundColor: darkMode ? Colors.white : Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                    ),
+                    onPressed: () {
+                      final success =
+                          context.read<GameState>().spendCoins(p.costCoins);
+                      if (success) {
+                        game.onPowerUpUsed(p.type);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Not enough coins'),
+                          ),
+                        );
+                      }
+                    },
+                    child: Column(
+                      children: [
+                        Text(p.label),
+                        const SizedBox(height: 4),
+                        Text('${p.costCoins} coins',
+                            style: const TextStyle(fontSize: 12)),
+                      ],
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: darkMode
-                        ? const Color(0xFF0F172A)
-                        : Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      if (game.isWordRumble) _buildKeyboard(context, darkMode),
-                      if (!game.isWordRumble)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            'Grab letters from the water and spell "${game.targetWord}"',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: darkMode ? Colors.white : Colors.black,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      Row(
-                        children: powerUps.map((p) {
-                          return Expanded(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 4),
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: darkMode
-                                      ? Colors.white12
-                                      : Colors.blueGrey.shade50,
-                                  foregroundColor:
-                                      darkMode ? Colors.white : Colors.black,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                onPressed: () {
-                                  final success = context
-                                      .read<GameState>()
-                                      .spendCoins(p.costCoins);
-                                  if (success) {
-                                    game.onPowerUpUsed(p.type);
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Not enough coins'),
-                                      ),
-                                    );
-                                  }
-                                },
-                                child: Column(
-                                  children: [
-                                    Text(p.label),
-                                    const SizedBox(height: 4),
-                                    Text('${p.costCoins} coins',
-                                        style: const TextStyle(fontSize: 12)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
