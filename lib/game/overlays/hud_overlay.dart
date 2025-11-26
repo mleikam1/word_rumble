@@ -23,7 +23,7 @@ class HudOverlay extends StatelessWidget {
         return darkMode ? const Color(0xFF3A3A3C) : const Color(0xFFB8BDC4);
       case SlotFeedback.none:
         return darkMode
-            ? const Color(0xFF3B3B4F).withOpacity(0.6)
+            ? Color(0xFF3B3B4F).withValues(alpha: 0.6)
             : const Color(0xFFDDEFF2);
     }
   }
@@ -42,8 +42,8 @@ class HudOverlay extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: darkMode
-                  ? Colors.black.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.3),
+                  ? Colors.black.withValues(alpha: 0.3)
+                  : Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Row(
@@ -179,7 +179,7 @@ class HudOverlay extends StatelessWidget {
     return best;
   }
 
-  Widget _buildKeyboard(bool darkMode) {
+  Widget _buildKeyboard(BuildContext context, bool darkMode) {
     const rows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 
     Color keyColor(String letter) {
@@ -299,11 +299,11 @@ class HudOverlay extends StatelessWidget {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: darkMode
-                          ? Colors.white.withOpacity(0.05)
-                          : Colors.black.withOpacity(0.05),
+                          ? Colors.white.withValues(alpha: 0.05)
+                          : Colors.black.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     child: Row(
@@ -372,7 +372,7 @@ class HudOverlay extends StatelessWidget {
                                         boxShadow: [
                                           BoxShadow(
                                             color:
-                                                Colors.black.withOpacity(0.15),
+                                                Colors.black.withValues(alpha: 0.15),
                                             blurRadius: 12,
                                           ),
                                         ],
@@ -420,14 +420,14 @@ class HudOverlay extends StatelessWidget {
                         : Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 8,
                       ),
                     ],
                   ),
                   child: Column(
                     children: [
-                      if (game.isWordRumble) _buildKeyboard(darkMode),
+                      if (game.isWordRumble) _buildKeyboard(context, darkMode),
                       if (!game.isWordRumble)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
