@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../core/game_state.dart';
 import '../../data/powerup_definition.dart';
 import '../../ui/widgets/banner_ad_slot.dart';
-import '../components/slot_component.dart';
 import '../word_rumble_game.dart';
 
 class HudOverlay extends StatelessWidget {
@@ -26,257 +25,15 @@ class HudOverlay extends StatelessWidget {
         return darkMode ? const Color(0xFF3A3A3C) : const Color(0xFFB8BDC4);
       case SlotFeedback.none:
         return darkMode
-            ? Color(0xFF3B3B4F).withValues(alpha: 0.6)
-            : const Color(0xFFDDEFF2);
+            ? const Color(0xFF1F2333)
+            : Colors.white.withValues(alpha: 0.85);
     }
-  }
-
-  Widget _buildTopBar(BuildContext context, GameState gameState,
-      {required bool darkMode}) {
-    final remainingTime = game.remainingTime;
-    final totalTime = game.totalTime;
-    final progress = (remainingTime / totalTime).clamp(0.0, 1.0);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: darkMode
-                  ? Colors.black.withValues(alpha: 0.3)
-                  : Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.monetization_on, color: Color(0xFFFFD166)),
-                const SizedBox(width: 6),
-                Text(
-                  gameState.coins.toString(),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor:
-                        darkMode ? Colors.white24 : Colors.black12,
-                    color: darkMode
-                        ? const Color(0xFF6EE7FF)
-                        : const Color(0xFF0D8EF0),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${remainingTime.toStringAsFixed(1)}s left',
-                  style: TextStyle(
-                    color: darkMode ? Colors.white : Colors.black87,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (game.isWordRumble)
-                  Text(
-                    'Guess ${game.guessesUsed}/${game.maxGuesses}',
-                    style: TextStyle(
-                      color: darkMode ? Colors.white70 : Colors.black54,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings coming soon')),
-              );
-            },
-            icon: Icon(
-              Icons.settings,
-              color: darkMode ? Colors.white70 : Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGrid(bool darkMode) {
-    final wordLength = game.targetWord.length;
-    final rows = game.maxGuesses;
-
-    return IgnorePointer(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(rows, (row) {
-          final letters = List<String?>.filled(wordLength, null);
-          final feedback =
-              List<SlotFeedback>.filled(wordLength, SlotFeedback.none);
-
-          if (row < game.guessHistory.length) {
-            final guess = game.guessHistory[row];
-            for (int i = 0; i < wordLength; i++) {
-              letters[i] = guess.guess[i];
-              feedback[i] = guess.feedback[i];
-            }
-          } else if (row == game.guessHistory.length) {
-            for (int i = 0; i < wordLength; i++) {
-              letters[i] = game.slots[i].currentLetter;
-              feedback[i] = game.slots[i].feedback;
-            }
-          }
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(wordLength, (i) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _GuessTile(
-                    letter: letters[i],
-                    background: _feedbackColor(feedback[i], darkMode),
-                    borderColor:
-                        darkMode ? Colors.white24 : Colors.black12,
-                    textColor:
-                        feedback[i] == SlotFeedback.none && !darkMode
-                            ? Colors.black
-                            : Colors.white,
-                  ),
-                );
-              }),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  SlotFeedback? _feedbackForLetter(String letter) {
-    SlotFeedback? best;
-    for (final guess in game.guessHistory) {
-      for (int i = 0; i < guess.guess.length; i++) {
-        if (guess.guess[i] == letter) {
-          final fb = guess.feedback[i];
-          if (best == null || fb.index < best.index) {
-            best = fb;
-          }
-        }
-      }
-    }
-    return best;
-  }
-
-  Widget _buildKeyboard(BuildContext context, bool darkMode) {
-    const rows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
-
-    Color keyColor(String letter) {
-      final feedback = _feedbackForLetter(letter);
-      if (feedback == null) {
-        return darkMode ? const Color(0xFF565F7E) : const Color(0xFFE3EBF5);
-      }
-      return _feedbackColor(feedback, darkMode);
-    }
-
-    return Column(
-      children: [
-        for (final row in rows)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: row.split('').map((letter) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: _KeyButton(
-                    label: letter,
-                    background: keyColor(letter),
-                    textColor: Colors.white,
-                    onTap: () => game.inputLetter(letter),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _KeyButton(
-                label: '⌫',
-                background:
-                    darkMode ? const Color(0xFF565F7E) : const Color(0xFFE3EBF5),
-                textColor: darkMode ? Colors.white : Colors.black87,
-                onTap: game.removeLetter,
-                wide: true,
-              ),
-              const SizedBox(width: 8),
-              _KeyButton(
-                label: 'SUBMIT',
-                background: const Color(0xFF0AC47D),
-                textColor: Colors.white,
-                onTap: () {
-                  game.submitCurrentGuess();
-                  final msg = game.lastResultMessage;
-                  if (msg != null && msg.isNotEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(msg)),
-                    );
-                  }
-                },
-                wide: true,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final gameState = context.watch<GameState>();
     final darkMode = game.isWordRumble;
-    final backgroundColor = darkMode
-        ? const Color(0xFF181824)
-        : const Color(0xFF9FE1E6);
-
-    final List<PowerUpDefinition> powerUps = const [
-      PowerUpDefinition(
-        type: PowerUpType.hintLetter,
-        id: 'hint',
-        label: 'Hint',
-        costCoins: 10,
-      ),
-      PowerUpDefinition(
-        type: PowerUpType.freezeTime,
-        id: 'freeze',
-        label: 'Freeze',
-        costCoins: 20,
-      ),
-      PowerUpDefinition(
-        type: PowerUpType.clearDecoys,
-        id: 'clear',
-        label: 'Clear',
-        costCoins: 30,
-      ),
-    ];
 
     return SafeArea(
       child: ValueListenableBuilder<int>(
@@ -284,44 +41,43 @@ class HudOverlay extends StatelessWidget {
         builder: (context, _, __) {
           return LayoutBuilder(
             builder: (context, constraints) {
-              final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-              final cardWidth = math.min(constraints.maxWidth - 24, 520.0);
-              final idealHeight = cardWidth * 16 / 9;
-              final maxHeight = constraints.maxHeight * 0.55;
-              final safeMaxHeight = math.max(maxHeight, 360.0);
-              final cardHeight = idealHeight.clamp(320.0, safeMaxHeight);
+              final cardWidth = math.min(constraints.maxWidth - 32, 640.0);
 
               return Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: darkMode
-                        ? [const Color(0xFF0F0F1A), const Color(0xFF1F1F35)]
-                        : [const Color(0xFFA7E9F1), const Color(0xFF7BCFDB)],
+                        ? [const Color(0xFF0A0E21), const Color(0xFF101429)]
+                        : [const Color(0xFFc6f2ff), const Color(0xFF91d8f4)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                 ),
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.only(bottom: bottomInset > 0 ? bottomInset : 12),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildTopBar(context, gameState, darkMode: darkMode),
-                        BannerAdSlot(darkMode: darkMode),
-                        const SizedBox(height: 12),
-                        _buildGamePreview(
-                          width: cardWidth,
-                          height: cardHeight,
-                          backgroundColor: backgroundColor,
-                          darkMode: darkMode,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildBottomPanel(context, powerUps, darkMode),
-                      ],
+                child: Column(
+                  children: [
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildHeaderBar(gameState, darkMode),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildPlayCard(cardWidth, darkMode),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildActionButtons(context, darkMode),
+                    ),
+                    const SizedBox(height: 8),
+                    BannerAdSlot(darkMode: darkMode),
+                    const SizedBox(height: 8),
+                  ],
                 ),
               );
             },
@@ -331,185 +87,359 @@ class HudOverlay extends StatelessWidget {
     );
   }
 
-  Widget _buildGamePreview({
-    required double width,
-    required double height,
-    required Color backgroundColor,
-    required bool darkMode,
-  }) {
-    return Center(
-      child: Container(
-        width: width,
-        height: height,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: darkMode ? Colors.white12 : Colors.black12,
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 12,
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: darkMode
-                    ? [const Color(0xFF141422), const Color(0xFF1F2033)]
-                    : [Colors.white.withValues(alpha: 0.8), backgroundColor],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-            child: IgnorePointer(
-              ignoring: true,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: _buildGrid(darkMode),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInstructionCard(darkMode),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildHeaderBar(GameState gameState, bool darkMode) {
+    final starCount = gameState.coins == 0 ? 12 : gameState.coins;
+    final gemCount = 50 + game.guessHistory.length;
 
-  Widget _buildInstructionCard(bool darkMode) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        decoration: BoxDecoration(
-          color: darkMode ? const Color(0xFF0B1220) : const Color(0xFFE2F6FF),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 10,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              game.isWordRumble
-                  ? 'Letters floating – tap keys or drag pieces!'
-                  : 'Drag the bobbing letters into the slots above.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: darkMode ? Colors.white70 : Colors.black87,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              game.isWordRumble
-                  ? 'Build your guess before the timer runs out.'
-                  : 'Water physics enabled',
-              style: TextStyle(
-                color: darkMode ? Colors.white60 : Colors.black54,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomPanel(
-    BuildContext context,
-    List<PowerUpDefinition> powerUps,
-    bool darkMode,
-  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: darkMode ? const Color(0xFF0F172A) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: darkMode ? Colors.white12 : Colors.black12,
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 8,
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _StatPill(
+            icon: Icons.star,
+            value: starCount,
+            color: const Color(0xFFFFD166),
+            darkMode: darkMode,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: darkMode
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : const Color(0xFFE9F6FF),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: darkMode ? Colors.white12 : Colors.black12,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Level ${game.levelIndex.toString().padLeft(2, '0')}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: darkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    game.currentTheme.name,
+                    style: TextStyle(
+                      color: darkMode ? Colors.white70 : Colors.black54,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          _StatPill(
+            icon: Icons.diamond,
+            value: gemCount,
+            color: const Color(0xFF7DD3FC),
+            darkMode: darkMode,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayCard(double width, bool darkMode) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+      decoration: BoxDecoration(
+        color: darkMode ? const Color(0xFF0B1220) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: darkMode ? Colors.white12 : Colors.black12,
+          width: 1.6,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          )
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (game.isWordRumble) _buildKeyboard(context, darkMode),
-          if (!game.isWordRumble)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'Grab letters from the water and spell "${game.targetWord}"',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: darkMode ? Colors.white : Colors.black,
-                ),
-                textAlign: TextAlign.center,
-              ),
+          _buildClue(darkMode),
+          const SizedBox(height: 16),
+          _buildSlotsRow(darkMode),
+          const SizedBox(height: 22),
+          _buildPhysicsArena(darkMode),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClue(bool darkMode) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: darkMode ? const Color(0xFF121A2A) : const Color(0xFFF4FBFF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: darkMode ? Colors.white10 : Colors.black12,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            '“A long sharp tool.”',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: darkMode ? Colors.white : const Color(0xFF0F172A),
             ),
-          Row(
-            children: powerUps.map((p) {
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          darkMode ? Colors.white12 : Colors.blueGrey.shade50,
-                      foregroundColor: darkMode ? Colors.white : Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () {
-                      final success =
-                          context.read<GameState>().spendCoins(p.costCoins);
-                      if (success) {
-                        game.onPowerUpUsed(p.type);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Not enough coins'),
-                          ),
-                        );
-                      }
-                    },
-                    child: Column(
-                      children: [
-                        Text(p.label),
-                        const SizedBox(height: 4),
-                        Text('${p.costCoins} coins',
-                            style: const TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Sound familiar? Collect the letters and spell it out before the timer melts away.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: darkMode ? Colors.white70 : Colors.black54,
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSlotsRow(bool darkMode) {
+    final letters = game.slots.map((s) => s.currentLetter).toList();
+    final feedback = game.slots.map((s) => s.feedback).toList();
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(letters.length, (i) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: _GuessTile(
+                letter: letters[i],
+                background: _feedbackColor(feedback[i], darkMode),
+                borderColor: darkMode ? Colors.white10 : Colors.black12,
+                textColor: feedback[i] == SlotFeedback.none && !darkMode
+                    ? Colors.black
+                    : Colors.white,
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '[ _ ]  [ _ ]  [ _ ]  [ _ ]  [ _ ]',
+          style: TextStyle(
+            color: darkMode ? Colors.white38 : Colors.black38,
+            letterSpacing: 1.2,
+          ),
+        )
+      ],
+    );
+  }
+
+  Widget _buildPhysicsArena(bool darkMode) {
+    final letters = (game.targetWord + 'LETTER').split('');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.sailing, size: 18, color: darkMode ? Colors.white54 : Colors.black45),
+            const SizedBox(width: 8),
+            Text(
+              'Physics Arena',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: darkMode ? Colors.white70 : Colors.black87,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: darkMode ? Colors.white12 : const Color(0xFFE8F6FF),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                game.currentTheme.physicsStyle.name.toUpperCase(),
+                style: TextStyle(
+                  color: darkMode ? Colors.white70 : Colors.black54,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          height: 220,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: darkMode
+                  ? [const Color(0xFF0E1627), const Color(0xFF1B2640)]
+                  : [const Color(0xFFd4f1ff), const Color(0xFFb1ddff)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: darkMode ? Colors.white12 : Colors.black12,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Letters float, bounce, and tumble depending on the mode.',
+                    style: TextStyle(
+                      color: darkMode ? Colors.white54 : Colors.black54,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      for (final letter in letters)
+                        _FloatingChip(
+                          label: letter,
+                          tilt: (letter.codeUnitAt(0) % 20 - 10) / 60,
+                          darkMode: darkMode,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _usePowerUp(
+    BuildContext context,
+    PowerUpDefinition powerUp,
+    VoidCallback action,
+  ) {
+    final spent = powerUp.costCoins == 0
+        ? true
+        : context.read<GameState>().spendCoins(powerUp.costCoins);
+    if (spent) {
+      action();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Not enough coins for that move.')),
+      );
+    }
+  }
+
+  Widget _buildActionButtons(BuildContext context, bool darkMode) {
+    final actions = [
+      PowerUpDefinition(
+        id: 'hint',
+        label: 'Hint',
+        costCoins: 10,
+        type: PowerUpType.hintLetter,
+      ),
+      PowerUpDefinition(
+        id: 'shuffle',
+        label: 'Shuffle',
+        costCoins: 0,
+        type: PowerUpType.freezeTime,
+      ),
+      PowerUpDefinition(
+        id: 'clear',
+        label: 'Clear 3',
+        costCoins: 20,
+        type: PowerUpType.clearDecoys,
+      ),
+      PowerUpDefinition(
+        id: 'freeze',
+        label: 'Freeze',
+        costCoins: 20,
+        type: PowerUpType.freezeTime,
+      ),
+    ];
+
+    return Row(
+      children: actions.map((p) {
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor:
+                    darkMode ? Colors.white10 : const Color(0xFFE8F6FF),
+                foregroundColor: darkMode ? Colors.white : Colors.black87,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                if (p.id == 'shuffle') {
+                  _usePowerUp(context, p, game.shuffleLetters);
+                } else {
+                  _usePowerUp(context, p, () => game.onPowerUpUsed(p.type));
+                }
+              },
+              child: Column(
+                children: [
+                  Text(
+                    p.label,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    p.id == 'shuffle' ? 'Mix the chaos' : '${p.costCoins} coins',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: darkMode ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
@@ -530,18 +460,18 @@ class _GuessTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
-      height: 48,
+      width: 54,
+      height: 56,
       decoration: BoxDecoration(
         color: background,
         border: Border.all(color: borderColor, width: 2),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(10),
       ),
       alignment: Alignment.center,
       child: Text(
         letter ?? '',
         style: TextStyle(
-          fontSize: 20,
+          fontSize: 22,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
@@ -550,41 +480,83 @@ class _GuessTile extends StatelessWidget {
   }
 }
 
-class _KeyButton extends StatelessWidget {
-  final String label;
-  final Color background;
-  final Color textColor;
-  final VoidCallback onTap;
-  final bool wide;
+class _StatPill extends StatelessWidget {
+  final IconData icon;
+  final int value;
+  final Color color;
+  final bool darkMode;
 
-  const _KeyButton({
-    required this.label,
-    required this.background,
-    required this.textColor,
-    required this.onTap,
-    this.wide = false,
+  const _StatPill({
+    required this.icon,
+    required this.value,
+    required this.color,
+    required this.darkMode,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: wide ? 86 : 32,
-      height: 44,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: background,
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: darkMode ? Colors.white10 : const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: darkMode ? Colors.white12 : Colors.black12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 6),
+          Text(
+            value.toString(),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: darkMode ? Colors.white : Colors.black87,
+            ),
           ),
-          elevation: 1,
+        ],
+      ),
+    );
+  }
+}
+
+class _FloatingChip extends StatelessWidget {
+  final String label;
+  final double tilt;
+  final bool darkMode;
+
+  const _FloatingChip({
+    required this.label,
+    required this.tilt,
+    required this.darkMode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final background = darkMode ? const Color(0xFF1F2A44) : Colors.white;
+    final borderColor = darkMode ? Colors.white10 : Colors.black12;
+
+    return Transform.rotate(
+      angle: tilt,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 6,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        onPressed: onTap,
         child: Text(
           label,
           style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w800,
+            color: darkMode ? Colors.white : Colors.black87,
           ),
         ),
       ),

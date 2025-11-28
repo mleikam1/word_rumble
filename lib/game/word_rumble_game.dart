@@ -51,6 +51,8 @@ class WordRumbleGame extends FlameGame
   String? lastResultMessage;
 
   bool get isWordRumble => mode == GameMode.wordRumble;
+  int get levelIndex => _currentLevel.index;
+  LevelTheme get currentTheme => _currentTheme;
 
   // Needed in HUD Overlay
   int get guessesUsed => _guessesUsed;
@@ -407,6 +409,18 @@ class WordRumbleGame extends FlameGame
     for (final d in decoys) {
       d.removeFromParent();
     }
+  }
+
+  void shuffleLetters() {
+    final rand = Random();
+    for (final letter in children.whereType<LetterComponent>()) {
+      letter.position = Vector2(
+        size.x * 0.2 + rand.nextDouble() * size.x * 0.6,
+        size.y * 0.05 + rand.nextDouble() * size.y * 0.25,
+      );
+    }
+
+    hudTicker.value++;
   }
 
   // --------------------------------------------------------------------------
