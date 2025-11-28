@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/game_state.dart';
 import '../../data/powerup_definition.dart';
 import '../../ui/widgets/banner_ad_slot.dart';
+import '../components/slot_component.dart';
 import '../word_rumble_game.dart';
 
 class HudOverlay extends StatelessWidget {
@@ -28,6 +29,8 @@ class HudOverlay extends StatelessWidget {
             ? const Color(0xFF1F2333)
             : Colors.white.withValues(alpha: 0.85);
     }
+
+    return Colors.transparent;
   }
 
   @override
