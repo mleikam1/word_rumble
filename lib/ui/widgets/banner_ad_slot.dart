@@ -26,20 +26,25 @@ class _BannerAdSlotState extends State<BannerAdSlot> {
   @override
   void initState() {
     super.initState();
-    _loadBanner();
+    if (AdService.isReady) _loadBanner();
   }
 
   Future<void> _loadBanner() async {
-    final ad = AdService.createBanner();
+    final ad = AdService.createBanner(
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          if (mounted) setState(() => _isLoaded = true);
+        },
+        onAdFailedToLoad: (ad, error) {
+          if (_bannerAd == ad) {
+            _bannerAd = null;
+            ad.dispose();
+          }
+        },
+      ),
+    );
+    _bannerAd = ad;
     await ad.load();
-    if (!mounted) {
-      ad.dispose();
-      return;
-    }
-    setState(() {
-      _bannerAd = ad;
-      _isLoaded = true;
-    });
   }
 
   @override
@@ -50,9 +55,12 @@ class _BannerAdSlotState extends State<BannerAdSlot> {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = widget.darkMode
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.black.withValues(alpha: 0.05);
+    final ad = _bannerAd;
+    if (!_isLoaded || ad == null) return const SizedBox.shrink();
+    final baseColor =
+        widget.darkMode
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.black.withValues(alpha: 0.05);
 
     return Padding(
       padding: widget.padding,
@@ -61,35 +69,17 @@ class _BannerAdSlotState extends State<BannerAdSlot> {
           color: baseColor,
           borderRadius: widget.borderRadius,
           border: Border.all(
-            color: widget.darkMode
-                ? Colors.white.withValues(alpha: 0.12)
-                : Colors.black.withValues(alpha: 0.08),
+            color:
+                widget.darkMode
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.08),
           ),
         ),
         padding: const EdgeInsets.all(8),
-        child: AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          alignment: Alignment.center,
-          child: _isLoaded && _bannerAd != null
-              ? SizedBox(
-                  height: _bannerAd!.size.height.toDouble(),
-                  width: _bannerAd!.size.width.toDouble(),
-                  child: AdWidget(ad: _bannerAd!),
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CircularProgressIndicator(strokeWidth: 2),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Loading test ad…',
-                      style: TextStyle(
-                        color: widget.darkMode ? Colors.white70 : Colors.black87,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+        child: SizedBox(
+          height: ad.size.height.toDouble(),
+          width: ad.size.width.toDouble(),
+          child: AdWidget(ad: ad),
         ),
       ),
     );

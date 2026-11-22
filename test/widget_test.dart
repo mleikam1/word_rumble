@@ -1,30 +1,68 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:word_rumble/game/word_rumble_game.dart';
 import 'package:word_rumble/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets(
+    'menu opens a live round; pause, resume and rotate keep the same game',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(360, 640);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      final board = find.byType(GameWidget<WordRumbleGame>);
+      late WordRumbleGame game;
+      await tester.runAsync(() async {
+        await tester.pumpWidget(const WordRumbleApp());
+        expect(find.textContaining('Campaign Mode'), findsOneWidget);
+        await tester.tap(find.textContaining('Word Rumble Mode'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+        game = tester.widget<GameWidget<WordRumbleGame>>(board).game!;
+        await game.toBeLoaded();
+      });
+      await tester.pump();
+      expect(game.isReady, isTrue);
+      expect(find.byKey(const ValueKey('round-clock')), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      await tester.tap(find.text('Submit Guess'));
+      await tester.pump();
+      expect(game.guessesUsed, 0);
+      expect(game.lastResultMessage, isNotNull);
+      expect(find.text(game.lastResultMessage!), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
-  });
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pump();
+      expect(find.text('Paused'), findsOneWidget);
+      final pausedTime = game.remainingTime;
+      await tester.pump(const Duration(seconds: 3));
+      expect(game.remainingTime, pausedTime);
+
+      tester.view.physicalSize = const Size(640, 360);
+      await tester.pump();
+      expect(tester.widget<GameWidget<WordRumbleGame>>(board).game, same(game));
+      await tester.tap(find.text('Resume'));
+      await tester.pump();
+      expect(game.isRoundPaused, isFalse);
+      expect(tester.takeException(), isNull);
+
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(game.remainingTime, lessThan(pausedTime));
+
+      final beforeBackground = game.remainingTime;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump(const Duration(seconds: 5));
+      expect(find.text('Paused'), findsOneWidget);
+      expect(game.remainingTime, beforeBackground);
+      await tester.tap(find.text('Main Menu'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.textContaining('Campaign Mode'), findsOneWidget);
+      expect(board, findsNothing);
+    },
+  );
 }

@@ -1,5 +1,3 @@
-import 'level_theme.dart';
-
 class LevelDefinition {
   final int index;
   final String targetWord;

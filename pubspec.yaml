@@ -35,6 +35,4 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/
-    - assets/audio/
-    - assets/levels/
+    - assets/words/enable_five.txt
