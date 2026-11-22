@@ -18,21 +18,25 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Play Campaign, Word Guess, and Daily Rumble.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="word_rumble">
+  <meta name="apple-mobile-web-app-title" content="Word Rumble">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>word_rumble</title>
+  <title>Word Rumble</title>
+  <meta name="theme-color" content="#102e38">
+  <style>html,body{margin:0;height:100%;background:#fff8e7}#launch{position:fixed;inset:0;display:grid;place-content:center;justify-items:center;gap:16px;color:#102e38;font:800 17px system-ui,sans-serif;letter-spacing:.09em}#launch img{border-radius:24%}</style>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <div id="launch" role="status"><img src="icons/Icon-192.png" width="64" height="64" alt=""><span>WORD RUMBLE</span></div>
+  <script>window.addEventListener("flutter-first-frame",function(){document.getElementById("launch")?.remove()},{once:true})</script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

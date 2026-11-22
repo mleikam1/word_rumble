@@ -39,16 +39,19 @@ class LetterComponent extends PositionComponent with DragCallbacks {
   void setSide(double side) {
     if (width == side && _label.text != null) return;
     size.setAll(side);
-    final ink =
-        board.currentTheme.letterColor.computeLuminance() > 0.35
-            ? Colors.black
-            : Colors.white;
+    final rect = size.toRect().deflate(2);
+    _baseShape = RRect.fromRectAndRadius(rect, const Radius.circular(10));
+    _faceShape = RRect.fromRectAndRadius(
+      Rect.fromLTRB(rect.left, rect.top, rect.right, rect.bottom - side * .09),
+      const Radius.circular(9),
+    );
     _label.text = TextSpan(
       text: letter,
       style: TextStyle(
+        fontFamily: 'DM Sans',
         fontSize: side * 0.53,
-        fontWeight: FontWeight.bold,
-        color: ink,
+        fontWeight: FontWeight.w900,
+        color: const Color(0xFF102E38),
       ),
     );
     _label.layout();
@@ -134,24 +137,39 @@ class LetterComponent extends PositionComponent with DragCallbacks {
     }
   }
 
-  @override
-  void render(Canvas canvas) {
-    final color = board.currentTheme.letterColor;
-    final rect = RRect.fromRectAndRadius(
-      size.toRect().deflate(1),
-      const Radius.circular(8),
-    );
-    canvas.drawRRect(rect, Paint()..color = color);
-    canvas.drawRRect(
-      rect,
+  late RRect _baseShape;
+  late RRect _faceShape;
+  static final _ripplePaint =
+      Paint()
+        ..color = const Color(0xB8D9F6D6)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.7;
+  static final _basePaint = Paint()..color = const Color(0xFFCE9D52);
+  static final _facePaint = Paint()..color = const Color(0xFFFFF4D6);
+  static final _edgePaint =
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..color = const Color(0x72000000),
-    );
+        ..strokeWidth = 2
+        ..color = const Color(0xFF173E46);
+
+  @override
+  void render(Canvas canvas) {
+    if (board.currentTheme.physicsStyle == PhysicsStyle.water &&
+        _pointer == null &&
+        y > board.size.y * .32) {
+      final ripple = Rect.fromCenter(
+        center: Offset(width / 2, height * .9),
+        width: width * 1.28,
+        height: height * .25,
+      );
+      canvas.drawOval(ripple, _ripplePaint);
+    }
+    canvas.drawRRect(_baseShape, _basePaint);
+    canvas.drawRRect(_faceShape, _facePaint);
+    canvas.drawRRect(_baseShape, _edgePaint);
     _label.paint(
       canvas,
-      Offset((width - _label.width) / 2, (height - _label.height) / 2),
+      Offset((width - _label.width) / 2, (height * .91 - _label.height) / 2),
     );
   }
 

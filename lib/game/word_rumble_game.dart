@@ -54,6 +54,9 @@ class WordRumbleGame extends FlameGame {
 
   bool _ready = false;
   bool _over = false;
+  bool _continued = false;
+  static const continueCost = 10;
+  static const continueSeconds = 10;
   bool _won = false;
   bool _roundPaused = false;
   bool _deferredHud = false;
@@ -95,7 +98,8 @@ class WordRumbleGame extends FlameGame {
   }
 
   @override
-  Color backgroundColor() => currentTheme.backgroundColor;
+  // Flutter paints the illustrated landscape beneath Flame's input surface.
+  Color backgroundColor() => const Color(0x00000000);
 
   @override
   Future<void> onLoad() async {
@@ -403,6 +407,31 @@ class WordRumbleGame extends FlameGame {
     _notifyHud();
   }
 
+  bool get canContinueAfterTimeout =>
+      _ready &&
+      !_disposed &&
+      _over &&
+      !_won &&
+      !isWordRumble &&
+      !_continued &&
+      remainingTime == 0;
+
+  /// Extend the current attempt only after the wallet commits its debit.
+  bool continueAfterTimeout(bool Function(int) spendCoins) {
+    if (!canContinueAfterTimeout) return false;
+    _continued = true;
+    if (!spendCoins(continueCost)) {
+      _continued = false;
+      return false;
+    }
+    remainingTime = continueSeconds.toDouble();
+    _over = false;
+    _roundPaused = false;
+    lastResultMessage = null;
+    _notifyHud();
+    return true;
+  }
+
   void setRoundPaused(bool paused) {
     if (_over || _roundPaused == paused) return;
     cancelDrag();
@@ -499,6 +528,7 @@ class WordRumbleGame extends FlameGame {
     _tiles.clear();
     _slots.clear();
     _history.clear();
+    _continued = false;
     _freeze = 0;
     _hudElapsed = 0;
     _motionTime = 0;

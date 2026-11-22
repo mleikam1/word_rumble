@@ -22,13 +22,13 @@ class SlotComponent extends PositionComponent {
       size.toRect().deflate(1.5),
       const Radius.circular(8),
     );
-    canvas.drawRRect(border, Paint()..color = const Color(0x30FFFFFF));
+    canvas.drawRRect(border, Paint()..color = const Color(0xCF102E38));
     canvas.drawRRect(
       border,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color = baseColor,
+        ..color = const Color(0xFFFFE2A0),
     );
   }
 }

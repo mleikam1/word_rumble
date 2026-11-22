@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,9 +27,19 @@ Future<WordRumbleGame> openMode(WidgetTester tester, String mode) async {
   addTearDown(tester.view.reset);
   late WordRumbleGame game;
   // Let the actual asset load before advancing the frame clock.
+  await tester.pumpWidget(const WordRumbleApp());
+  await tester.pumpAndSettle();
+  final campaign = mode == 'Crazy Physics';
+  final entry = find.text(campaign ? 'Play campaign' : 'WORD GUESS');
+  await tester.scrollUntilVisible(entry, 140);
+  await tester.pumpAndSettle();
+  await tester.tap(entry);
+  await tester.pumpAndSettle();
+  final start = find.text(campaign ? 'Play level' : 'Start Word Guess');
+  await tester.scrollUntilVisible(start, 150);
+  await tester.pumpAndSettle();
   await tester.runAsync(() async {
-    await tester.pumpWidget(const WordRumbleApp());
-    await tester.tap(find.textContaining(mode).first);
+    await tester.tap(start);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     game = tester.widget<GameWidget<WordRumbleGame>>(arena).game!;

@@ -15,10 +15,19 @@ void main() {
 
       final board = find.byType(GameWidget<WordRumbleGame>);
       late WordRumbleGame game;
+      await tester.pumpWidget(const WordRumbleApp());
+      await tester.pumpAndSettle();
+      expect(find.text('Play campaign'), findsOneWidget);
+      final entry = find.text('WORD GUESS');
+      await tester.scrollUntilVisible(entry, 140);
+      await tester.pumpAndSettle();
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      final start = find.text('Start Word Guess');
+      await tester.scrollUntilVisible(start, 150);
+      await tester.pumpAndSettle();
       await tester.runAsync(() async {
-        await tester.pumpWidget(const WordRumbleApp());
-        expect(find.textContaining('Campaign Mode'), findsOneWidget);
-        await tester.tap(find.textContaining('Word Rumble Mode'));
+        await tester.tap(start);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 350));
         game = tester.widget<GameWidget<WordRumbleGame>>(board).game!;
@@ -60,8 +69,11 @@ void main() {
       expect(game.remainingTime, beforeBackground);
       await tester.tap(find.text('Main Menu'));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.tap(find.text('Leave round'));
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
-      expect(find.textContaining('Campaign Mode'), findsOneWidget);
+      expect(find.text('Play campaign'), findsOneWidget);
       expect(board, findsNothing);
     },
   );
