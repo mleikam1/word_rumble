@@ -162,8 +162,13 @@ void main() {
               .game!;
       final slot = g.slots.first;
       final tile = g.tiles.firstWhere((v) => v.letter == 'W');
-      expect(g.beginDrag(tile), true);
-      g.releaseDrag(tile, slot.position, tile.velocity);
+      final origin = t.getTopLeft(find.byKey(const ValueKey('arena-surface')));
+      final gesture = await t.startGesture(origin + Offset(tile.x, tile.y));
+      await gesture.moveTo(origin + Offset(slot.x, slot.y));
+      await t.pump(const Duration(milliseconds: 140));
+      await gesture.up();
+      await t.pump(const Duration(milliseconds: 320));
+      expect(slot.tile, same(tile));
       g.update(g.totalTime + 1);
       await t.pump();
       await t.tap(find.text('Continue · 10 coins'));

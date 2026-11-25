@@ -22,7 +22,7 @@ const supplies = [
   Supply(
     PowerUpType.hintLetter,
     'Hint',
-    'Place one correct letter in its slot.',
+    'Reveal the next landing in Campaign, or place a letter in Word Guess.',
     10,
     Icons.lightbulb_outline_rounded,
     Color(0xffffcd50),

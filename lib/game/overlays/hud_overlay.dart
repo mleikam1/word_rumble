@@ -9,6 +9,7 @@ import '../../data/supplies.dart';
 import '../../ui/style.dart';
 import '../components/slot_component.dart';
 import '../word_rumble_game.dart';
+import 'campaign_hud.dart';
 
 const _ink = InkColors.ink;
 const _paper = InkColors.cream;
@@ -30,10 +31,13 @@ class HudOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final description =
-        game.isWordRumble
-            ? 'Drag five tiles, then submit a word.'
-            : 'Drag the letters into the slots in order.';
+    if (!game.isWordRumble) {
+      return CampaignHud(
+        game: game,
+        board: _Landscape(game: game, child: arena),
+      );
+    }
+    const description = 'Drag five tiles, then submit a word.';
     final header = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -54,11 +58,7 @@ class HudOverlay extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    daily
-                        ? 'DAILY CHALLENGE'
-                        : game.isWordRumble
-                        ? 'RUMBLE MODE'
-                        : 'CAMPAIGN  /  LEVEL ${game.levelIndex.toString().padLeft(2, '0')}',
+                    daily ? 'DAILY CHALLENGE' : 'LEGACY PRACTICE',
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -94,9 +94,7 @@ class HudOverlay extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                game.isWordRumble
-                    ? 'Find the hidden word'
-                    : 'Spell ${game.targetWord}',
+                'Find the hidden word',
                 style: const TextStyle(
                   color: _ink,
                   fontFamily: 'Barlow Condensed',
@@ -161,33 +159,45 @@ class HudOverlay extends StatelessWidget {
                   ),
                 ),
               ),
-              if (game.guessHistory.isNotEmpty)
-                TextButton(
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(64, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                  ),
-                  onPressed: () => _showHistory(context),
-                  child: const Text('History'),
+              TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(64, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                 ),
+                onPressed:
+                    game.guessHistory.isEmpty
+                        ? null
+                        : () => _showHistory(context),
+                child: const Text('History'),
+              ),
             ],
           ),
-          if (game.guessHistory.isNotEmpty)
-            GuessHistory(game: game, latestOnly: true),
+          SizedBox(
+            height: 30,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: GuessHistory(game: game, latestOnly: true),
+            ),
+          ),
         ],
       ],
     );
 
     final note = Semantics(
       liveRegion: game.lastResultMessage != null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(
-          game.lastResultMessage ?? description,
-          style: TextStyle(
-            color: game.lastResultMessage == null ? _softInk : _ink,
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
+      child: SizedBox(
+        height: 42,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            game.lastResultMessage ?? description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: game.lastResultMessage == null ? _softInk : _ink,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
           ),
         ),
       ),

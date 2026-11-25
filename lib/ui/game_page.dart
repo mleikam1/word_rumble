@@ -1,5 +1,7 @@
 import 'package:flame/game.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
 import '../core/game_mode.dart';
@@ -30,6 +32,7 @@ class GamePage extends StatefulWidget {
 class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
   late final WordRumbleGame _game;
   late final Widget _arena;
+  Animation<double>? _entry;
   bool _dailyRecorded = false;
   bool get _daily => widget.dailyWord != null;
 
@@ -41,16 +44,50 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
       mode: widget.mode,
       initialLevelIndex: widget.initialLevelIndex,
       targetOverride: widget.dailyWord,
+      reducedMotion: wallet.reducedMotion,
+      onLatch: wallet.feedback,
       onCoinsEarned:
-          (amount) => wallet.winCampaign(widget.initialLevelIndex, amount),
+          (amount) => wallet.winCampaign(
+            _game.levelIndex,
+            amount,
+            attempt: _game.campaignAttempt,
+            medal: _game.level.medalFor(
+              secondsLeft: _game.remainingTime,
+              misses: _game.landingMisses,
+              assisted: _game.assisted,
+            ),
+          ),
     );
-    _arena = GameWidget<WordRumbleGame>(
+    _game.campaignInputReady = _game.isWordRumble;
+    final surface = GameWidget<WordRumbleGame>(
       key: GlobalKey(),
       game: _game,
       loadingBuilder: (_) => const Center(child: CircularProgressIndicator()),
     );
+    _arena =
+        _game.isWordRumble
+            ? surface
+            : CampaignTouchSurface(game: _game, child: surface);
     _game.hudTicker.addListener(_observeResult);
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final entry = ModalRoute.of(context)?.animation;
+    if (entry != _entry) {
+      _entry?.removeStatusListener(_entryStatus);
+      _entry = entry;
+      entry?.addStatusListener(_entryStatus);
+    }
+    _entryStatus(entry?.status ?? AnimationStatus.completed);
+  }
+
+  void _entryStatus(AnimationStatus status) {
+    if (!_game.isWordRumble) {
+      _game.campaignInputReady = status == AnimationStatus.completed;
+    }
   }
 
   void _observeResult() {
@@ -70,6 +107,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _entry?.removeStatusListener(_entryStatus);
     _game.hudTicker.removeListener(_observeResult);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -118,6 +156,9 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    _game.reducedMotion =
+        context.select<GameState, bool>((s) => s.reducedMotion) ||
+        MediaQuery.disableAnimationsOf(context);
     return ValueListenableBuilder<int>(
       valueListenable: _game.hudTicker,
       child: _arena,
@@ -176,4 +217,43 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
       },
     );
   }
+}
+
+/// Canvas and pointer surface share one RenderBox coordinate system, including
+/// SafeArea offsets, landscape layout, and device pixel ratio.
+class CampaignTouchSurface extends StatelessWidget {
+  const CampaignTouchSurface({
+    super.key,
+    required this.game,
+    required this.child,
+  });
+  final WordRumbleGame game;
+  final Widget child;
+
+  void _dispatch(
+    PointerEvent event,
+    void Function(int, Vector2, Duration) handle,
+  ) {
+    game.syncPointerClock(
+      event.timeStamp,
+      SchedulerBinding.instance.currentSystemFrameTimeStamp,
+    );
+    final position = event.localPosition;
+    handle(event.pointer, Vector2(position.dx, position.dy), event.timeStamp);
+  }
+
+  @override
+  Widget build(BuildContext context) => Listener(
+    key: const ValueKey('arena-surface'),
+    behavior: HitTestBehavior.opaque,
+    onPointerDown: (e) {
+      if (e.buttons == kPrimaryButton) {
+        _dispatch(e, game.pointerDown);
+      }
+    },
+    onPointerMove: (e) => _dispatch(e, game.pointerMove),
+    onPointerUp: (e) => _dispatch(e, game.pointerUp),
+    onPointerCancel: (e) => game.pointerCancel(e.pointer),
+    child: child,
+  );
 }

@@ -147,7 +147,7 @@ class _RumbleLobbyState extends State<RumbleLobby> with WidgetsBindingObserver {
                               Text(
                                 daily
                                     ? 'DAILY PUZZLE   /   ${dateLabel(_day)}'
-                                    : 'HIDDEN-WORD PUZZLE',
+                                    : 'LEGACY PRACTICE',
                                 style: tagStyle(),
                               ),
                               const SizedBox(height: 12),

@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum PhysicsStyle {
-  water,
-  ice,
-  lava,
-  wind,
-  zeroG,
-}
+enum PhysicsStyle { water, ice, lava, wind, zeroG }
 
 class LevelTheme {
   final String id;

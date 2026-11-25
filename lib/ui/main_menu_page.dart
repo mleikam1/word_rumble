@@ -170,12 +170,12 @@ class _Home extends StatelessWidget {
             : done == LevelRepository.campaignLevels.length
             ? 'Replay campaign'
             : 'Continue campaign';
-    final guess = _ModeCard(
-      title: 'WORD GUESS',
-      tag: 'RUMBLE MODE',
-      detail: 'Five letters. Six guesses.',
-      bg: const Color(0xffd2c4e9),
-      art: const TileArt(size: 74),
+    final guess = ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      leading: const Icon(Icons.extension_outlined, color: InkColors.muted),
+      title: Text('WORD GUESS', style: heading(23)),
+      subtitle: const Text('Legacy practice · Six guesses'),
+      trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => Navigator.pushNamed(context, '/rumble'),
     );
     final daily = _ModeCard(
@@ -190,6 +190,7 @@ class _Home extends StatelessWidget {
       builder: (context, bounds) {
         final wide = bounds.maxWidth >= 780;
         final hero = WorldHero(
+          key: const ValueKey('campaign-play'),
           level: level,
           action: heroAction,
           onTap: () => openBrief(context, level),
@@ -227,7 +228,7 @@ class _Home extends StatelessWidget {
                       Expanded(
                         flex: 2,
                         child: Column(
-                          children: [guess, const SizedBox(height: 14), daily],
+                          children: [daily, const SizedBox(height: 10), guess],
                         ),
                       ),
                     ],
@@ -235,9 +236,9 @@ class _Home extends StatelessWidget {
                 else ...[
                   hero,
                   const SizedBox(height: 15),
-                  guess,
-                  const SizedBox(height: 12),
                   daily,
+                  const SizedBox(height: 4),
+                  guess,
                 ],
                 const SizedBox(height: 18),
                 InkWell(
@@ -420,13 +421,14 @@ class PassportPage extends StatelessWidget {
                       ),
                     ),
                     title: Text(
-                      LevelRepository.getThemeById(l.themeId).name,
+                      '${LevelRepository.getThemeById(l.themeId).name} · ${l.targetWord}',
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     subtitle: Text(
                       state.completed(l.index)
-                          ? 'Stamp collected'
-                          : 'Level ${two(l.index)}',
+                          ? (state.bestMedal(l.index)?.label ??
+                              'Stamp collected')
+                          : 'Round ${two(LevelRepository.positionOf(l.index))}',
                     ),
                     trailing: Icon(
                       state.completed(l.index)

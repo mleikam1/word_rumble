@@ -8,36 +8,24 @@ import '../game_page.dart';
 import '../style.dart';
 
 class WorldPoster {
-  const WorldPoster(this.art, this.motion, this.tip, this.icon, this.tint);
-  final String art, motion, tip;
+  const WorldPoster(this.art, this.icon, this.tint);
+  final String art;
   final IconData icon;
   final Color tint;
   static const all = <String, WorldPoster>{
     'water_bay': WorldPoster(
       'splash_bay',
-      'Buoyant tiles',
-      'Catch a tile as it bobs to the surface. Drag it into its matching slot and release.',
       Icons.waves_rounded,
       Color(0xffb4e3cf),
     ),
     'lava_core': WorldPoster(
       'lava_core',
-      'Eruption kicks',
-      'Watch for tiles dropping onto the ledges. Catch them before the next upward kick.',
       Icons.local_fire_department_outlined,
       Color(0xffffb598),
     ),
-    'wind_peak': WorldPoster(
-      'wind_peak',
-      'Crosswinds',
-      'Gusts carry loose tiles sideways. Hold a tile steady, then release it over an open slot.',
-      Icons.air_rounded,
-      Color(0xffc8d7ef),
-    ),
+    'wind_peak': WorldPoster('wind_peak', Icons.air_rounded, Color(0xffc8d7ef)),
     'zero_station': WorldPoster(
       'zero_g',
-      'Zero gravity',
-      'A future destination for drifting tiles.',
       Icons.public_rounded,
       Color(0xffd9c8e8),
     ),
@@ -48,7 +36,7 @@ class WorldPoster {
 String two(int value) => value.toString().padLeft(2, '0');
 LevelDefinition nextStop(GameState profile) =>
     LevelRepository.campaignLevels.firstWhere(
-      (l) => !profile.completed(l.index),
+      (l) => profile.unlocked(l.index) && !profile.completed(l.index),
       orElse: () => LevelRepository.campaignLevels.first,
     );
 void openBrief(BuildContext context, LevelDefinition level) => Navigator.push(
@@ -77,7 +65,7 @@ class WorldHero extends StatelessWidget {
     final poster = WorldPoster.all[world.id]!;
     return Semantics(
       button: true,
-      label: '$action, ${world.name}, level ${level.index}',
+      label: '$action, ${world.name}, ${level.targetWord}',
       excludeSemantics: true,
       child: PosterCard(
         onTap: onTap,
@@ -127,7 +115,7 @@ class WorldHero extends StatelessWidget {
                           borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
-                          'LEVEL ${two(level.index)}',
+                          'LEVEL ${two(LevelRepository.positionOf(level.index))}',
                           style: tagStyle(),
                         ),
                       ),
@@ -140,7 +128,7 @@ class WorldHero extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    '${poster.motion}   ·   ${level.timeLimitSeconds} seconds',
+                    '${level.targetWord}   ·   ${level.timeLimitSeconds} seconds',
                     style: const TextStyle(
                       color: InkColors.cream,
                       fontWeight: FontWeight.w600,
@@ -214,81 +202,57 @@ class WorldsPage extends StatelessWidget {
         ),
         const SizedBox(height: 17),
         for (final theme in LevelRepository.themes)
-          Builder(
-            builder: (context) {
-              final entries = levels.where((l) => l.themeId == theme.id);
-              final level = entries.firstOrNull;
-              final poster = WorldPoster.all[theme.id]!;
-              final locked = level != null && !profile.unlocked(level.index);
-              final finished = level != null && profile.completed(level.index);
-              final state =
-                  level == null
-                      ? 'In development'
-                      : finished
-                      ? 'Cleared · replay'
-                      : locked
-                      ? 'Clear level ${two(level.index - 1)} first'
-                      : 'Ready to play';
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: PosterCard(
-                  onTap: level == null ? null : () => openBrief(context, level),
-                  child: Row(
-                    children: [
-                      ClipRect(
-                        child: SizedBox(
-                          width: 104,
-                          height: 95,
-                          child: Image.asset(
-                            poster.path,
-                            fit: BoxFit.cover,
-                            alignment: const Alignment(.58, 0),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: PosterCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: 96,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.asset(
+                          WorldPoster.all[theme.id]!.path,
+                          fit: BoxFit.cover,
+                          alignment: const Alignment(.5, -.15),
+                        ),
+                        const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [Color(0xe5102e38), Color(0x00102e38)],
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(13, 10, 5, 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                level == null
-                                    ? 'UPCOMING'
-                                    : 'LEVEL ${two(level.index)}',
-                                style: tagStyle(InkColors.teal),
-                              ),
-                              display(theme.name.toUpperCase(), size: 29),
-                              const SizedBox(height: 4),
-                              Text(
-                                state,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: InkColors.muted,
-                                ),
-                              ),
-                            ],
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            child: display(
+                              theme.name.toUpperCase(),
+                              size: 34,
+                              color: InkColors.cream,
+                            ),
                           ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: Icon(
-                          level == null
-                              ? Icons.schedule_rounded
-                              : locked
-                              ? Icons.lock_outline_rounded
-                              : finished
-                              ? Icons.check_circle_outline_rounded
-                              : Icons.arrow_forward_rounded,
-                          size: 21,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                  if (!levels.any((l) => l.themeId == theme.id))
+                    const ListTile(
+                      leading: Icon(Icons.schedule_rounded),
+                      title: Text('In development'),
+                    ),
+                  for (final level in levels.where(
+                    (l) => l.themeId == theme.id,
+                  ))
+                    _MapRound(level: level, profile: profile),
+                ],
+              ),
+            ),
           ),
       ],
     );
@@ -304,6 +268,49 @@ class WorldsPage extends StatelessWidget {
           appBar: AppBar(title: const Text('Worlds')),
           body: SafeArea(child: content),
         );
+  }
+}
+
+String _unlockText(LevelDefinition level) {
+  final prerequisite = LevelRepository.getCampaignLevel(level.requiresClear!);
+  return 'Clear ${prerequisite.targetWord} to unlock';
+}
+
+class _MapRound extends StatelessWidget {
+  const _MapRound({required this.level, required this.profile});
+  final LevelDefinition level;
+  final GameState profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final medal = profile.bestMedal(level.index);
+    final open = profile.unlocked(level.index);
+    return ListTile(
+      key: ValueKey('campaign-map-${level.index}'),
+      leading: Text(
+        two(LevelRepository.positionOf(level.index)),
+        style: heading(25, InkColors.teal),
+      ),
+      title: Text(
+        level.targetWord,
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+      subtitle: Text(
+        !open
+            ? _unlockText(level)
+            : medal == null
+            ? '${level.timeLimitSeconds}s · Ready to play'
+            : '${medal.label} medal · Replay',
+      ),
+      trailing: Icon(
+        !open
+            ? Icons.lock_outline_rounded
+            : medal != null
+            ? Icons.workspace_premium_outlined
+            : Icons.arrow_forward_rounded,
+      ),
+      onTap: () => openBrief(context, level),
+    );
   }
 }
 
@@ -338,7 +345,7 @@ class LevelBriefPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 22),
                 Text(
-                  'CAMPAIGN    /    LEVEL ${two(level.index)}',
+                  'CAMPAIGN    /    LEVEL ${two(LevelRepository.positionOf(level.index))}',
                   style: tagStyle(InkColors.teal),
                 ),
                 const SizedBox(height: 5),
@@ -367,7 +374,7 @@ class LevelBriefPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 17),
                 Text(
-                  spec.tip,
+                  level.tip,
                   style: const TextStyle(fontSize: 16, height: 1.38),
                 ),
                 const SizedBox(height: 17),
@@ -384,7 +391,13 @@ class LevelBriefPage extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 23),
+                Text(
+                  'Swift medal · finish with ${level.swiftSecondsLeft}s left. Clean medal · earn Swift with no misses or assists.',
+                  style: const TextStyle(color: InkColors.muted),
+                ),
+                const SizedBox(height: 14),
                 FilledButton.icon(
+                  key: const ValueKey('campaign-start'),
                   onPressed:
                       open
                           ? () {
@@ -404,11 +417,7 @@ class LevelBriefPage extends StatelessWidget {
                   icon: Icon(
                     open ? Icons.play_arrow_rounded : Icons.lock_outline,
                   ),
-                  label: Text(
-                    open
-                        ? 'Play level'
-                        : 'Clear level ${two(level.index - 1)} to unlock',
-                  ),
+                  label: Text(open ? 'Play level' : _unlockText(level)),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/guide'),

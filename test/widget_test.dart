@@ -73,6 +73,7 @@ void main() {
       await tester.tap(find.text('Leave round'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
+      await tester.scrollUntilVisible(find.text('Play campaign'), -140);
       expect(find.text('Play campaign'), findsOneWidget);
       expect(board, findsNothing);
     },

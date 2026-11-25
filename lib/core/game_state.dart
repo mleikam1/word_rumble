@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/level_definition.dart';
 import '../data/level_repository.dart';
 import '../data/powerup_definition.dart';
 import '../data/supplies.dart';
@@ -19,6 +20,9 @@ class GameState extends ChangeNotifier {
   int _coins = 0;
   int get coins => _coins;
   final Set<int> _completed = {};
+  final Set<int> _legacyAccess = {};
+  final Map<int, CampaignMedal> _medals = {};
+  final _creditedAttempts = Expando<bool>();
   final Map<String, int> _bag = {};
   int campaignWins = 0;
   bool sound = true;
@@ -51,6 +55,26 @@ class GameState extends ChangeNotifier {
       model._completed.addAll(
         (data['completed'] as List? ?? []).whereType<int>(),
       );
+      final oldAccess = data['legacyAccess'];
+      if (oldAccess is List) {
+        model._legacyAccess.addAll(oldAccess.whereType<int>());
+      } else {
+        // v1 unlocked FIRE from WATER, and STORM from FIRE. Keep those
+        // destinations open without inventing clears for the inserted rounds.
+        if (model.completed(1)) model._legacyAccess.add(2);
+        if (model.completed(2)) model._legacyAccess.add(3);
+      }
+      final medals = data['medals'];
+      if (medals is Map) {
+        for (final entry in medals.entries) {
+          final id = int.tryParse(entry.key.toString());
+          final medal =
+              CampaignMedal.values
+                  .where((m) => m.name == entry.value)
+                  .firstOrNull;
+          if (id != null && medal != null) model._medals[id] = medal;
+        }
+      }
       final stock = data['stock'] as Map? ?? {};
       for (final type in PowerUpType.values) {
         model._bag[type.name] = count(stock[type.name]);
@@ -74,6 +98,10 @@ class GameState extends ChangeNotifier {
         'coins': _coins,
         'wins': campaignWins,
         'completed': _completed.toList(),
+        'legacyAccess': _legacyAccess.toList(),
+        'medals': _medals.map(
+          (id, medal) => MapEntry(id.toString(), medal.name),
+        ),
         'stock': _bag,
         'dailyKey': dailyKey,
         'dailyStatus': dailyStatus,
@@ -96,13 +124,33 @@ class GameState extends ChangeNotifier {
   }
 
   bool completed(int level) => _completed.contains(level);
-  bool unlocked(int level) {
-    final levels = LevelRepository.campaignLevels;
-    final i = levels.indexWhere((v) => v.index == level);
-    return i == 0 || (i > 0 && completed(levels[i - 1].index));
+  CampaignMedal? bestMedal(int id) =>
+      _medals[id] ?? (completed(id) ? CampaignMedal.clear : null);
+
+  bool unlocked(int id) {
+    final level =
+        LevelRepository.campaignLevels
+            .where((entry) => entry.index == id)
+            .firstOrNull;
+    if (level == null) return false;
+    return completed(id) ||
+        _legacyAccess.contains(id) ||
+        level.requiresClear == null ||
+        completed(level.requiresClear!);
   }
 
-  void winCampaign(int index, int reward) {
+  void winCampaign(
+    int index,
+    int reward, {
+    required Object attempt,
+    CampaignMedal medal = CampaignMedal.clear,
+  }) {
+    if (_creditedAttempts[attempt] == true) return;
+    _creditedAttempts[attempt] = true;
+    final previous = bestMedal(index);
+    if (previous == null || medal.index > previous.index) {
+      _medals[index] = medal;
+    }
     _completed.add(index);
     campaignWins++;
     _coins += reward;
@@ -183,6 +231,8 @@ class GameState extends ChangeNotifier {
   void resetProfile() {
     _coins = 0;
     _completed.clear();
+    _legacyAccess.clear();
+    _medals.clear();
     _bag.clear();
     campaignWins = 0;
     dailyWins = 0;

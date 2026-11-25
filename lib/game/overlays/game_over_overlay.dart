@@ -7,6 +7,8 @@ import '../../data/level_repository.dart';
 import '../../ui/style.dart';
 import '../word_rumble_game.dart';
 import 'hud_overlay.dart';
+import 'clear_vignette.dart';
+import '../../data/supplies.dart';
 
 const _ink = InkColors.ink;
 const _cream = InkColors.cream;
@@ -83,13 +85,18 @@ class GameOverOverlay extends StatelessWidget {
       foregroundColor: Colors.white,
       minimumSize: const Size(48, 48),
     );
-    Widget primary(String label, VoidCallback action, IconData symbol) =>
-        FilledButton.icon(
-          style: buttonStyle,
-          onPressed: action,
-          icon: Icon(symbol, size: 19),
-          label: Text(label),
-        );
+    Widget primary(
+      String label,
+      VoidCallback action,
+      IconData symbol, {
+      Key? key,
+    }) => FilledButton.icon(
+      key: key,
+      style: buttonStyle,
+      onPressed: action,
+      icon: Icon(symbol, size: 19),
+      label: Text(label),
+    );
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(14),
@@ -128,7 +135,7 @@ class GameOverOverlay extends StatelessWidget {
                                   ? 'DAILY CHALLENGE'
                                   : game.isWordRumble
                                   ? 'RUMBLE MODE'
-                                  : '${game.currentTheme.name.toUpperCase()}  /  ${game.levelIndex.toString().padLeft(2, '0')}',
+                                  : '${game.currentTheme.name.toUpperCase()}  /  ${LevelRepository.positionOf(game.levelIndex).toString().padLeft(2, '0')}',
                               style: const TextStyle(
                                 color: _teal,
                                 letterSpacing: 1.2,
@@ -163,6 +170,14 @@ class GameOverOverlay extends StatelessWidget {
                       () => game.setRoundPaused(false),
                       Icons.play_arrow_rounded,
                     ),
+                    if (!game.isWordRumble)
+                      OutlinedButton.icon(
+                        key: const ValueKey('campaign-restart'),
+                        onPressed: game.restartLevel,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Restart'),
+                      ),
+                    if (!game.isWordRumble) _PausedSupplies(game: game),
                     TextButton.icon(
                       onPressed:
                           () => Navigator.pushNamed(context, '/settings'),
@@ -189,22 +204,34 @@ class GameOverOverlay extends StatelessWidget {
                                 letterSpacing: 1.3,
                               ),
                             ),
-                            Text(
-                              game.targetWord,
-                              style: const TextStyle(
-                                color: _ink,
-                                letterSpacing: 2,
-                                fontFamily: 'Barlow Condensed',
-                                fontWeight: FontWeight.w800,
-                                fontSize: 34,
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    game.targetWord,
+                                    style: const TextStyle(
+                                      color: _ink,
+                                      letterSpacing: 2,
+                                      fontFamily: 'Barlow Condensed',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 34,
+                                    ),
+                                  ),
+                                ),
+                                if (won && !game.isWordRumble)
+                                  ClearVignette(
+                                    word: game.targetWord,
+                                    world: current.themeId,
+                                    still: game.reducedMotion,
+                                  ),
+                              ],
                             ),
                             Text(
                               game.isWordRumble
                                   ? '${game.guessesUsed} of ${game.maxGuesses} guesses used'
                                   : won
-                                  ? '+${current.rewardCoins} coins earned'
-                                  : 'Level ${current.index} • ${current.timeLimitSeconds} seconds',
+                                  ? '${current.medalFor(secondsLeft: game.remainingTime, misses: game.landingMisses, assisted: game.assisted).label} medal  ·  +${current.rewardCoins} coins'
+                                  : 'Round ${LevelRepository.positionOf(current.index)} • ${current.timeLimitSeconds} seconds',
                               style: const TextStyle(
                                 color: _ink,
                                 fontWeight: FontWeight.w700,
@@ -221,9 +248,10 @@ class GameOverOverlay extends StatelessWidget {
                     const SizedBox(height: 12),
                     if (hasNext)
                       primary(
-                        'Next: ${LevelRepository.getThemeById(levels[next].themeId).name}',
+                        'Next · ${levels[next].targetWord}',
                         () => onNextLevel(levels[next].index),
                         Icons.arrow_forward_rounded,
+                        key: const ValueKey('campaign-next'),
                       )
                     else if (game.isWordRumble && !daily)
                       primary('New word', onNewWord, Icons.casino_outlined)
@@ -254,11 +282,12 @@ class GameOverOverlay extends StatelessWidget {
                         icon: const Icon(Icons.refresh),
                         label: const Text('Retry'),
                       ),
-                    TextButton.icon(
-                      onPressed: () => Navigator.pushNamed(context, '/shop'),
-                      icon: const Icon(Icons.storefront),
-                      label: const Text('Shop'),
-                    ),
+                    if (game.isWordRumble)
+                      TextButton.icon(
+                        onPressed: () => Navigator.pushNamed(context, '/shop'),
+                        icon: const Icon(Icons.storefront),
+                        label: const Text('Shop'),
+                      ),
                   ],
                   if (paused || !daily)
                     TextButton.icon(
@@ -272,6 +301,58 @@ class GameOverOverlay extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PausedSupplies extends StatelessWidget {
+  const _PausedSupplies({required this.game});
+  final WordRumbleGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    final wallet = context.watch<GameState>();
+    return ExpansionTile(
+      title: const Text('Supplies'),
+      children: [
+        for (final supply in supplies)
+          ListTile(
+            leading: Icon(supply.icon),
+            title: Text(supply.label),
+            subtitle: Text(
+              wallet.stock(supply.type) > 0
+                  ? 'Use 1 of ${wallet.stock(supply.type)} and resume'
+                  : 'Use ${supply.cost} coins and resume',
+            ),
+            enabled:
+                game.canUsePowerUp(supply.type, fromPause: true) &&
+                (wallet.stock(supply.type) > 0 || wallet.coins >= supply.cost),
+            onTap: () {
+              final stocked = wallet.stock(supply.type) > 0;
+              if (!stocked && wallet.coins < supply.cost) return;
+              game.setRoundPaused(false);
+              if (!game.onPowerUpUsed(supply.type)) {
+                game.setRoundPaused(true);
+                return;
+              }
+              if (stocked) {
+                wallet.useStock(supply.type);
+              } else {
+                wallet.spendCoins(supply.cost);
+              }
+              wallet.feedback();
+            },
+          ),
+        ListTile(
+          leading: const Icon(Icons.shuffle),
+          title: const Text('Shuffle'),
+          subtitle: const Text('Rearrange loose tiles and resume'),
+          onTap: () {
+            game.setRoundPaused(false);
+            game.shuffleLetters();
+          },
+        ),
+      ],
     );
   }
 }

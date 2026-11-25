@@ -447,21 +447,21 @@ class _GuidePageState extends State<GuidePage> {
         ),
         const _GuideStep(
           icon: Icons.touch_app_outlined,
-          title: 'Drag letters into place',
+          title: 'Aim for a numbered berth',
           body:
-              'Release each tile inside an empty slot. To change its position, drag it out or move it to another empty slot.',
+              'Center the tile, slow down until you see the catch mark, then lift. To edit a latched letter, move it to an empty berth or the marked return zone.',
         ),
         const _GuideStep(
           icon: Icons.landscape_outlined,
           title: 'Read the terrain',
           body:
-              'Tiles bob in water, bounce above lava and slide with wind gusts. Spare letters can be decoys.',
+              'Watch for a rising swell, a glowing vent or a gust flag. Steady berths give you time to land.',
         ),
         const _GuideStep(
           icon: Icons.flag_outlined,
           title: 'Finish before time runs out',
           body:
-              'Filling the row with the target word completes the level and awards campaign coins.',
+              'The last letter has to settle before the clock runs out. A correct word banks itself and earns coins.',
         ),
       ],
       const SizedBox(height: 22),

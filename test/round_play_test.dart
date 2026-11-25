@@ -12,6 +12,7 @@ import 'package:word_rumble/game/components/letter_component.dart';
 import 'package:word_rumble/game/components/slot_component.dart';
 import 'package:word_rumble/game/word_rumble_game.dart';
 import 'package:word_rumble/main.dart';
+import 'package:word_rumble/ui/game_page.dart';
 
 final arena = find.byType(GameWidget<WordRumbleGame>);
 
@@ -58,11 +59,16 @@ Future<void> dragTile(
   final origin = tester.getTopLeft(arena);
   final start = origin + Offset(tile.position.x, tile.position.y);
   final end = origin + Offset(to.x, to.y);
+  final campaign = tile.board.usesBerths;
   final gesture = await tester.startGesture(start);
   await gesture.moveTo(Offset.lerp(start, end, 0.4)!);
   await gesture.moveTo(end);
+  if (campaign) {
+    await tester.pump(const Duration(milliseconds: 130));
+  }
   await gesture.up();
   await tester.pump();
+  if (campaign) await frames(tester, 20);
 }
 
 Future<void> spell(
@@ -89,12 +95,12 @@ Future<void> submit(WidgetTester tester) async {
 
 void main() {
   testWidgets(
-    'Campaign wins by touch, retries cleanly, times out, reaches Lava and Wind',
+    'Campaign wrong word stays editable, retries pay once and advance by touch',
     (tester) async {
       var game = await openMode(tester, 'Crazy Physics');
       expect(game.targetWord, 'WATER');
-      expect(game.tiles.where((t) => t.isDecoy), hasLength(2));
-      expect(game.totalTime, 30);
+      expect(game.tiles.where((t) => t.isDecoy), hasLength(1));
+      expect(game.totalTime, 35);
       expect(find.text('Submit Guess'), findsNothing);
       game.update(1.25);
       await tester.pump();
@@ -114,7 +120,8 @@ void main() {
       expect(game.isGameOver, isFalse);
       final rTile = game.slots[3].tile!;
       final eTile = game.slots[4].tile!;
-      await dragTile(tester, rTile, rTile.home);
+      expect(game.lastResultMessage, 'Not quite. Reorder the letters');
+      await dragTile(tester, rTile, game.returnCenter);
       await dragTile(tester, eTile, game.slots[3].position);
       await dragTile(tester, rTile, game.slots[4].position);
       expect(game.isWon, isTrue);
@@ -128,9 +135,9 @@ void main() {
       await tester.tap(find.text('Retry'));
       await frames(tester);
       expect(game.slots.every((s) => s.tile == null), isTrue);
-      expect(game.tiles, hasLength(7));
-      expect(game.remainingTime, closeTo(30, 0.2));
-      game.update(31);
+      expect(game.tiles, hasLength(6));
+      expect(game.remainingTime, closeTo(35, 0.2));
+      game.update(36);
       await tester.pump();
       expect(game.isGameOver, isTrue);
       expect(game.isWon, isFalse);
@@ -139,25 +146,14 @@ void main() {
       await tester.tap(find.text('Retry'));
       await frames(tester);
       await spell(tester, game, 'WATER');
-      await tester.tap(find.textContaining('Lava Core').last);
+      expect(wallet.coins, 10);
+      await tester.tap(find.byKey(const ValueKey('campaign-next')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
       await frames(tester);
       game = tester.widget<GameWidget<WordRumbleGame>>(arena).game!;
-      expect(game.targetWord, 'FIRE');
-      expect(game.totalTime, 25);
-      expect(game.tiles.where((t) => t.isDecoy), hasLength(3));
-      await spell(tester, game, 'FIRE');
-      await tester.tap(find.textContaining('Wind Peak').last);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 350));
-      await frames(tester);
-      game = tester.widget<GameWidget<WordRumbleGame>>(arena).game!;
-      expect(game.targetWord, 'STORM');
-      expect(game.totalTime, 35);
-      expect(game.tiles.where((t) => t.isDecoy), hasLength(4));
-      await spell(tester, game, 'STORM');
-      expect(game.isWon, isTrue);
+      expect(game.targetWord, 'SHIP');
+      expect(game.slots.every((s) => s.tile == null), isTrue);
     },
   );
 
@@ -228,7 +224,11 @@ void main() {
         initialLevelIndex: 1,
         random: Random(4),
       );
-      await tester.pumpWidget(MaterialApp(home: GameWidget(game: game)));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CampaignTouchSurface(game: game, child: GameWidget(game: game)),
+        ),
+      );
       await frames(tester);
       final tile = game.tiles.first;
       final other = game.tiles.last;
@@ -253,11 +253,12 @@ void main() {
       await dragTile(tester, tile, second.position);
       expect(first.tile, isNull);
       expect(second.tile, same(tile));
+      final beforeFreeze = game.remainingTime;
       expect(game.onPowerUpUsed(PowerUpType.freezeTime), isTrue);
       game.update(3);
-      expect(game.remainingTime, time);
+      expect(game.remainingTime, closeTo(beforeFreeze, .001));
       game.update(3);
-      expect(game.remainingTime, closeTo(time - 1, 0.01));
+      expect(game.remainingTime, closeTo(beforeFreeze - 1, 0.01));
       game.restartLevel();
       await frames(tester);
       expect(game.isFrozen, isFalse);

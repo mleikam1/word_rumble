@@ -1,5 +1,20 @@
 import 'dart:math';
-import 'dart:ui' show Canvas, Color, Offset, Paint;
+import 'package:flutter/material.dart'
+    show
+        Canvas,
+        Color,
+        Offset,
+        Paint,
+        PaintingStyle,
+        Rect,
+        RRect,
+        Radius,
+        Path,
+        TextPainter,
+        TextSpan,
+        TextStyle,
+        FontWeight,
+        TextDirection;
 
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +28,11 @@ import '../data/level_theme.dart';
 import '../data/powerup_definition.dart';
 import 'components/letter_component.dart';
 import 'components/slot_component.dart';
+import 'landing.dart';
+import 'hazard_cycle.dart';
+
+part 'campaign_round.dart';
+part 'campaign_scenery.dart';
 
 class GuessResult {
   final String guess;
@@ -27,6 +47,57 @@ class WordRumbleGame extends FlameGame {
   final int initialLevelIndex;
   final void Function(int)? onCoinsEarned;
   final Random _random;
+  final VoidCallback? onLatch;
+  bool reducedMotion;
+  bool campaignInputReady = true;
+  double _inputAhead = 0;
+
+  /// A pointer packet can arrive between two display frames. Advance to its
+  /// timestamp before judging the berth or scheduling a latch. Flame's next
+  /// frame includes this interval again, so update subtracts the consumed time.
+  void syncPointerClock(Duration eventTime, Duration frameTime) {
+    if (!usesBerths || !_playing || eventTime <= frameTime) return;
+    final offset = (eventTime - frameTime).inMicroseconds / 1e6;
+    final extra = offset - _inputAhead;
+    if (extra <= 0) return;
+    _inputAhead = offset;
+    _dock.advance(extra);
+  }
+
+  Object campaignAttempt = Object();
+  bool assisted = false;
+  late final _dock = _DockRound(this);
+  LevelDefinition get level => _level;
+  bool get usesBerths =>
+      !isWordRumble &&
+      const {
+        PhysicsStyle.water,
+        PhysicsStyle.lava,
+        PhysicsStyle.wind,
+      }.contains(currentTheme.physicsStyle);
+  int get landingMisses => _dock.misses;
+  int get cleanLandings => _dock.cleanLandings;
+  String get hazardLabel => _dock.hazardLabel;
+  Vector2 get returnCenter => _dock.returnCenter;
+  bool get willReturnTile => _dock.willReturnTile;
+  bool get isHolding => _dock.held != null;
+  LandingCue get landingCue => _dock.preview.cue;
+  void pointerDown(int pointer, Vector2 point, Duration stamp) {
+    if (usesBerths && _playing) _dock.down(pointer, point, stamp);
+  }
+
+  void pointerMove(int pointer, Vector2 point, Duration stamp) {
+    if (usesBerths && _playing) _dock.move(pointer, point, stamp);
+  }
+
+  void pointerUp(int pointer, Vector2 point, Duration stamp) {
+    if (usesBerths && _playing) _dock.up(pointer, point, stamp);
+  }
+
+  void pointerCancel(int pointer) {
+    if (usesBerths && pointer == _dock.pointer) _dock.cancel();
+  }
+
   GuessWords? _guessWords;
 
   final ValueNotifier<int> hudTicker = ValueNotifier(0);
@@ -75,12 +146,19 @@ class WordRumbleGame extends FlameGame {
   bool get isGameOver => _over;
   bool get isWon => _won;
   bool get isRoundPaused => _roundPaused;
-  bool get _playing => _ready && !_roundPaused && !_over && !_disposed;
+  bool get _playing =>
+      _ready &&
+      !_roundPaused &&
+      !_over &&
+      !_disposed &&
+      (isWordRumble || campaignInputReady);
 
   WordRumbleGame({
     required this.mode,
     required this.initialLevelIndex,
     this.onCoinsEarned,
+    this.onLatch,
+    this.reducedMotion = false,
     Random? random,
     GuessWords? guessWords,
     String? targetOverride,
@@ -93,7 +171,7 @@ class WordRumbleGame extends FlameGame {
             ? targetOverride ??
                 GuessWords.targets[_random.nextInt(GuessWords.targets.length)]
             : _level.targetWord;
-    totalTime = _level.timeLimitSeconds.toDouble();
+    totalTime = isWordRumble ? 30 : _level.timeLimitSeconds.toDouble();
     remainingTime = totalTime;
   }
 
@@ -113,19 +191,21 @@ class WordRumbleGame extends FlameGame {
 
   void _buildBoard() {
     for (var i = 0; i < targetWord.length; i++) {
-      final slot = SlotComponent(index: i, baseColor: currentTheme.slotColor);
+      final slot = SlotComponent(
+        index: i,
+        baseColor: currentTheme.slotColor,
+        objective: usesBerths ? targetWord[i] : null,
+      );
       _slots.add(slot);
       add(slot);
     }
-    final rack = <({String letter, bool decoy})>[
-      for (final char in (isWordRumble ? GuessWords.rack : targetWord).split(
-        '',
-      ))
-        (letter: char, decoy: false),
-      if (!isWordRumble)
-        for (var i = 0; i < _level.decoyCount; i++)
-          (letter: String.fromCharCode(65 + _random.nextInt(26)), decoy: true),
-    ]..shuffle(_random);
+    final shuffle = usesBerths ? Random(_level.seed) : _random;
+    final letters =
+        isWordRumble ? GuessWords.rack.split('') : _level.tileLetters;
+    final rack = [
+      for (var i = 0; i < letters.length; i++)
+        (letter: letters[i], decoy: !isWordRumble && i >= targetWord.length),
+    ]..shuffle(shuffle);
     _rackCapacity = rack.length;
     for (final entry in rack) {
       final tile = LetterComponent(
@@ -134,7 +214,7 @@ class WordRumbleGame extends FlameGame {
         letter: entry.letter,
         isDecoy: entry.decoy,
         homeIndex: _tiles.length,
-        phase: _random.nextDouble() * 2 * pi,
+        phase: shuffle.nextDouble() * 2 * pi,
       );
       _tiles.add(tile);
       add(tile);
@@ -155,6 +235,12 @@ class WordRumbleGame extends FlameGame {
     final width = size.x;
     final height = size.y;
     if (width <= 0 || height <= 0) return;
+    if (usesBerths) {
+      _dock.layout();
+      _layoutWidth = width;
+      _layoutHeight = height;
+      return;
+    }
     final gap = min(8.0, min(height * 0.04, width * 0.018));
     final side = min(
       68.0,
@@ -237,6 +323,7 @@ class WordRumbleGame extends FlameGame {
 
   @override
   void render(Canvas canvas) {
+    if (usesBerths && _tiles.isNotEmpty) _dock.paint(canvas);
     if (_shelfEdges.isNotEmpty) {
       final paint =
           Paint()
@@ -262,18 +349,22 @@ class WordRumbleGame extends FlameGame {
 
   bool canMove(LetterComponent tile) =>
       _playing &&
+      !usesBerths &&
       _dragged != tile &&
       _tiles.contains(tile) &&
       _slotOf(tile) == null;
 
   bool beginDrag(LetterComponent tile) {
-    if (!_playing || _dragged != null || !_tiles.contains(tile)) return false;
+    if (usesBerths || !_playing || _dragged != null || !_tiles.contains(tile)) {
+      return false;
+    }
     _dragged = tile;
     _dragOrigin.setFrom(tile.position);
     return true;
   }
 
   void cancelDrag() {
+    if (usesBerths) _dock.cancel();
     final tile = _dragged;
     if (tile == null) return;
     tile.position.setFrom(_slotOf(tile)?.position ?? _dragOrigin);
@@ -376,7 +467,17 @@ class WordRumbleGame extends FlameGame {
   @override
   void update(double dt) {
     super.update(dt);
-    if (!_playing || dt <= 0) return;
+    if (!_playing) {
+      _inputAhead = 0;
+      return;
+    }
+    if (dt <= 0 || !dt.isFinite) return;
+    if (usesBerths) {
+      final consumed = min(dt, _inputAhead);
+      _inputAhead -= consumed;
+      _dock.advance(dt - consumed);
+      return;
+    }
     _motionTime += min(dt, .05);
     final frozen = min(_freeze, dt);
     _freeze -= frozen;
@@ -394,8 +495,9 @@ class WordRumbleGame extends FlameGame {
 
   void _finish({required bool won}) {
     if (_over) return;
-    cancelDrag();
     _over = true;
+    cancelDrag();
+    if (usesBerths && !won) _dock.abortSettlements();
     _won = won;
     lastResultMessage =
         won
@@ -424,6 +526,7 @@ class WordRumbleGame extends FlameGame {
       _continued = false;
       return false;
     }
+    assisted = true;
     remainingTime = continueSeconds.toDouble();
     _over = false;
     _roundPaused = false;
@@ -435,12 +538,20 @@ class WordRumbleGame extends FlameGame {
   void setRoundPaused(bool paused) {
     if (_over || _roundPaused == paused) return;
     cancelDrag();
+    if (_over) return;
     _roundPaused = paused;
     _notifyHud();
   }
 
-  bool canUsePowerUp(PowerUpType type) {
-    if (!_playing || _dragged != null) return false;
+  bool canUsePowerUp(PowerUpType type, {bool fromPause = false}) {
+    if (!_ready ||
+        _over ||
+        _disposed ||
+        (_roundPaused && !fromPause) ||
+        _dragged != null ||
+        (usesBerths && (!campaignInputReady || _dock.busy))) {
+      return false;
+    }
     return switch (type) {
       PowerUpType.freezeTime => !isFrozen,
       PowerUpType.hintLetter => _slots.any(
@@ -453,6 +564,7 @@ class WordRumbleGame extends FlameGame {
 
   bool onPowerUpUsed(PowerUpType type) {
     if (!canUsePowerUp(type)) return false;
+    if (usesBerths) assisted = true;
     switch (type) {
       case PowerUpType.freezeTime:
         _freeze = 5;
@@ -461,6 +573,11 @@ class WordRumbleGame extends FlameGame {
           (s) => s.currentLetter != targetWord[s.index],
         );
         final correct = targetWord[slot.index];
+        if (usesBerths) {
+          lastResultMessage = 'Look for $correct at berth ${slot.index + 1}.';
+          _notifyHud();
+          return true;
+        }
         // Protect already-correct copies when choosing between duplicate tiles.
         final tile = _tiles.firstWhere((t) {
           if (t.letter != correct) return false;
@@ -489,7 +606,8 @@ class WordRumbleGame extends FlameGame {
   }
 
   void shuffleLetters() {
-    if (!_playing || _dragged != null) return;
+    if (!_playing || _dragged != null || (usesBerths && _dock.busy)) return;
+    if (usesBerths) assisted = true;
     final free =
         _tiles.where((t) => _slotOf(t) == null).toList()..shuffle(_random);
     if (free.isEmpty) return;
@@ -525,6 +643,11 @@ class WordRumbleGame extends FlameGame {
     for (final slot in _slots) {
       slot.removeFromParent();
     }
+    _dock.reset();
+    _inputAhead = 0;
+    _nextTileId = 0;
+    campaignAttempt = Object();
+    assisted = false;
     _tiles.clear();
     _slots.clear();
     _history.clear();
@@ -558,6 +681,7 @@ class WordRumbleGame extends FlameGame {
   @override
   void onDispose() {
     _disposed = true;
+    _dock.dispose();
     hudTicker.dispose();
     super.onDispose();
   }

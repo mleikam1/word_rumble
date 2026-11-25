@@ -1,0 +1,54 @@
+PODS:
+  - Flutter (1.0.0)
+  - Google-Mobile-Ads-SDK (11.2.0):
+    - GoogleUserMessagingPlatform (>= 1.1)
+  - google_mobile_ads (5.1.0):
+    - Flutter
+    - Google-Mobile-Ads-SDK (~> 11.2.0)
+    - webview_flutter_wkwebview
+  - GoogleUserMessagingPlatform (3.1.0)
+  - integration_test (0.0.1):
+    - Flutter
+  - shared_preferences_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - webview_flutter_wkwebview (0.0.1):
+    - Flutter
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - google_mobile_ads (from `.symlinks/plugins/google_mobile_ads/ios`)
+  - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
+
+SPEC REPOS:
+  trunk:
+    - Google-Mobile-Ads-SDK
+    - GoogleUserMessagingPlatform
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  google_mobile_ads:
+    :path: ".symlinks/plugins/google_mobile_ads/ios"
+  integration_test:
+    :path: ".symlinks/plugins/integration_test/ios"
+  shared_preferences_foundation:
+    :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  webview_flutter_wkwebview:
+    :path: ".symlinks/plugins/webview_flutter_wkwebview/darwin"
+
+SPEC CHECKSUMS:
+  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  Google-Mobile-Ads-SDK: 5a6d005a6cb5b5e8f4c7b69ca05cdea79c181139
+  google_mobile_ads: e7ff9b0b955462fe3d397eb5cda398c13c1bb3b2
+  GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
+  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
+  webview_flutter_wkwebview: 44d4dee7d7056d5ad185d25b38404436d56c547c
+
+PODFILE CHECKSUM: 3b699761a5cb9432aca9a3b37488e7daba5f31a7
+
+COCOAPODS: 1.16.2

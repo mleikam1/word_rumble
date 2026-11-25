@@ -1,4 +1,1 @@
-enum GameMode {
-  campaign,
-  wordRumble,
-}
+enum GameMode { campaign, wordRumble }

@@ -16,7 +16,7 @@ void main() {
     final shipped = LevelRepository.campaignLevels.map(
       (level) => level.themeId,
     );
-    expect(shipped, ['water_bay', 'lava_core', 'wind_peak']);
+    expect(shipped.toSet(), {'water_bay', 'lava_core', 'wind_peak'});
     expect(
       LevelRepository.themes.any((t) => t.physicsStyle == PhysicsStyle.ice),
       isFalse,
